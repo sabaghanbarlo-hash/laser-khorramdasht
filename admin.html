@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>پنل مدیریت | مرکز لیزر آرامیس</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="admin-body">
+
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <h1>ورود مدیر</h1>
+    <p>برای مدیریت نوبت‌ها و تنظیمات مرکز وارد شوید.</p>
+    <div id="login-error" class="banner-msg error" style="display:none;"></div>
+    <div class="field">
+      <label for="login-email">ایمیل</label>
+      <input type="email" id="login-email" autocomplete="username">
+    </div>
+    <div class="field">
+      <label for="login-password">رمز عبور</label>
+      <input type="password" id="login-password" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary btn-block" id="login-btn">ورود</button>
+    <a href="index.html" class="back-link">بازگشت به سایت</a>
+  </div>
+</div>
+
+<div id="admin-app" class="admin-app" style="display:none;">
+  <aside class="admin-sidebar">
+    <div class="admin-logo">آرامیس <span>| مدیریت</span></div>
+    <nav class="admin-nav">
+      <button class="admin-nav-btn active" data-tab="dashboard">داشبورد</button>
+      <button class="admin-nav-btn" data-tab="appointments">نوبت‌ها</button>
+      <button class="admin-nav-btn" data-tab="services">خدمات</button>
+      <button class="admin-nav-btn" data-tab="hours">ساعات کاری</button>
+    </nav>
+    <button class="btn btn-ghost btn-block" id="logout-btn">خروج</button>
+  </aside>
+
+  <main class="admin-main">
+    <section id="tab-dashboard" class="admin-tab active">
+      <h2>داشبورد</h2>
+      <div class="stat-grid" id="stat-grid"></div>
+    </section>
+
+    <section id="tab-appointments" class="admin-tab">
+      <div class="admin-tab-head">
+        <h2>مدیریت نوبت‌ها</h2>
+        <div class="filter-row">
+          <select id="filter-preset">
+            <option value="all">همه</option>
+            <option value="today">امروز</option>
+            <option value="tomorrow">فردا</option>
+            <option value="week">این هفته</option>
+            <option value="date">تاریخ خاص</option>
+          </select>
+          <input type="date" id="filter-date" style="display:none;">
+          <select id="filter-status">
+            <option value="">همه وضعیت‌ها</option>
+            <option value="pending">در انتظار</option>
+            <option value="confirmed">تأیید شده</option>
+            <option value="cancelled">لغو شده</option>
+            <option value="completed">تکمیل شده</option>
+          </select>
+        </div>
+      </div>
+      <div id="appointments-table-wrap"></div>
+    </section>
+
+    <section id="tab-services" class="admin-tab">
+      <div class="admin-tab-head">
+        <h2>مدیریت خدمات</h2>
+        <button class="btn btn-primary" id="add-service-btn">+ سرویس جدید</button>
+      </div>
+      <div id="services-table-wrap"></div>
+    </section>
+
+    <section id="tab-hours" class="admin-tab">
+      <h2>ساعات کاری و تعطیلی‌ها</h2>
+      <div class="admin-card">
+        <h3>ساعات کاری روزانه</h3>
+        <div class="hours-form">
+          <div class="field"><label>ساعت شروع</label><input type="time" id="open-time-input"></div>
+          <div class="field"><label>ساعت پایان</label><input type="time" id="close-time-input"></div>
+          <div class="field"><label>فاصله زمانی نوبت‌ها (دقیقه)</label>
+            <select id="slot-interval-input">
+              <option value="15">۱۵</option>
+              <option value="30">۳۰</option>
+              <option value="45">۴۵</option>
+              <option value="60">۶۰</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="save-hours-btn">ذخیره</button>
+      </div>
+
+      <div class="admin-card">
+        <h3>تنظیمات نمایش عمومی</h3>
+        <div class="field"><label>نام مرکز</label><input type="text" id="business-name-input"></div>
+        <div class="field"><label>شماره تماس</label><input type="text" id="business-phone-input"></div>
+        <div class="field"><label>آدرس</label><input type="text" id="business-address-input"></div>
+        <button class="btn btn-primary" id="save-settings-btn">ذخیره</button>
+      </div>
+
+      <div class="admin-card">
+        <h3>بستن یک تاریخ خاص (تعطیلی)</h3>
+        <div class="hours-form">
+          <div class="field"><label>تاریخ</label><input type="date" id="closed-date-input"></div>
+          <div class="field"><label>دلیل (اختیاری)</label><input type="text" id="closed-reason-input"></div>
+        </div>
+        <button class="btn btn-primary" id="add-closed-date-btn">افزودن تعطیلی</button>
+        <div id="closed-dates-list" class="chip-list"></div>
+      </div>
+
+      <div class="admin-card">
+        <h3>مسدود کردن یک بازه ساعتی خاص</h3>
+        <div class="hours-form">
+          <div class="field"><label>تاریخ</label><input type="date" id="blocked-date-input"></div>
+          <div class="field"><label>از ساعت</label><input type="time" id="blocked-start-input"></div>
+          <div class="field"><label>تا ساعت</label><input type="time" id="blocked-end-input"></div>
+        </div>
+        <button class="btn btn-primary" id="add-blocked-btn">افزودن مسدودی</button>
+        <div id="blocked-slots-list" class="chip-list"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="modal-overlay" id="service-modal-overlay">
+  <div class="modal-panel">
+    <button class="modal-close" id="service-modal-close">×</button>
+    <h3 class="modal-title" id="service-modal-title">سرویس جدید</h3>
+    <input type="hidden" id="service-id-input">
+    <div class="field"><label>نام سرویس</label><input type="text" id="service-name-input"></div>
+    <div class="field"><label>توضیحات</label><textarea id="service-desc-input" rows="2"></textarea></div>
+    <div class="field"><label>قیمت (تومان)</label><input type="number" id="service-price-input"></div>
+    <div class="field"><label>مدت زمان (دقیقه)</label><input type="number" id="service-duration-input" value="30"></div>
+    <button class="btn btn-primary btn-block" id="service-save-btn">ذخیره</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
