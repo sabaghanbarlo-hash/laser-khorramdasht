@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Sitemap: https://sabaghanbarlo-hash.github.io/laser-khorramdasht/sitemap.xml
