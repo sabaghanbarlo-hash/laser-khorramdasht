@@ -55,6 +55,7 @@ async function loadPublicData() {
     window.__servicesCache = services || [];
   } catch (e) {
     list.innerHTML = '<div class="service-row"><div class="info"><h3>خطا در بارگذاری خدمات. لطفاً صفحه را رفرش کنید.</h3></div></div>';
+    window.__servicesCache = window.__servicesCache || [];
   }
 
   try {
@@ -72,4 +73,4 @@ async function loadPublicData() {
     }
   } catch (e) { /* keep defaults */ }
 }
-loadPublicData();
+window.__servicesReady = loadPublicData();
