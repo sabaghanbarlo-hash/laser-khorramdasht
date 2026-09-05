@@ -43,12 +43,16 @@
     }
   }
 
-  function openModal() {
+  async function openModal() {
     resetState();
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden';
+    body.innerHTML = '<p class="empty-note">در حال بارگذاری…</p>';
+    await Promise.all([
+      window.__servicesReady || Promise.resolve(),
+      ensureSupportingData(),
+    ]);
     render();
-    ensureSupportingData();
   }
   function closeModal() {
     overlay.classList.remove('open');
@@ -107,6 +111,13 @@
   // -------- Step 1: choose service(s) --------
   function renderStep1() {
     const services = window.__servicesCache || [];
+    if (services.length === 0) {
+      body.innerHTML = `
+        <h3 class="modal-title" id="booking-title">۱. انتخاب خدمت</h3>
+        <p class="empty-note">در حال حاضر خدمتی برای رزرو ثبت نشده است. لطفاً بعداً دوباره تلاش کنید.</p>
+      `;
+      return;
+    }
     body.innerHTML = `
       <h3 class="modal-title" id="booking-title">۱. انتخاب خدمت</h3>
       <p class="modal-sub">می‌توانید یک یا چند خدمت را انتخاب کنید.</p>
