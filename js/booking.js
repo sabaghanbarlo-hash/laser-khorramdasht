@@ -379,7 +379,9 @@
     submitBtn.innerHTML = '<span class="spinner"></span> در حال ثبت…';
 
     const total = state.selectedServices.reduce((sum, s) => sum + s.price, 0);
+    const newId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const payload = {
+      id: newId,
       customer_name: state.name,
       phone: state.phone,
       services: state.selectedServices.map(s => ({ id: s.id, name: s.name, price: s.price })),
@@ -390,7 +392,10 @@
       status: 'pending',
     };
 
-    const { data, error } = await supabaseClient.from('appointments').insert(payload).select().single();
+    // Note: no .select() here — anon users can insert a booking but cannot
+    // read appointment rows back (customer data stays private), so we build
+    // the confirmation from what we just sent rather than reading it back.
+    const { error } = await supabaseClient.from('appointments').insert(payload);
 
     state.submitting = false;
     if (error) {
@@ -408,7 +413,7 @@
       return;
     }
 
-    state.result = data;
+    state.result = payload;
     render();
   }
 
