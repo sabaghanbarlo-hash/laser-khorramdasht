@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 <script type="application/ld+json" id="ld-json">
 {
   "@context": "https://schema.org",
@@ -206,10 +206,11 @@
     <div>
       <div class="info-card">
         <h3>آدرس مرکز</h3>
-        <p id="address-text">خرمدشت، خیابان ولیعصر، روبه‌روی میثم، ساختمان پزشکان امید</p>
+        <p><span id="address-text">خرمدشت، خیابان ولیعصر، روبه‌روی میثم، ساختمان پزشکان امید</span><span id="floor-text"></span></p>
         <div class="map-embed">
-          <iframe title="نقشه مرکز" loading="lazy" src="https://maps.google.com/maps?q=%D8%AE%D8%B1%D9%85%D8%AF%D8%B4%D8%AA%20%DA%A9%D8%B1%D8%AC&t=&z=14&ie=UTF8&iwloc=&output=embed"></iframe>
+          <iframe id="map-iframe" title="نقشه مرکز" loading="lazy" src="https://maps.google.com/maps?q=%D8%AE%D8%B1%D9%85%D8%AF%D8%B4%D8%AA%20%DA%A9%D8%B1%D8%AC&t=&z=14&ie=UTF8&iwloc=&output=embed"></iframe>
         </div>
+        <a id="maps-link" href="https://maps.google.com/?q=خرمدشت کرج" target="_blank" rel="noopener" style="display:none;font-size:0.85rem;margin-top:8px;color:var(--accent-deep);font-weight:700;">مسیریابی در Google Maps ↗</a>
       </div>
       <div class="info-card">
         <h3>ساعات کاری</h3>
@@ -280,8 +281,9 @@
         <p id="contact-hours">هر روز — ۹:۰۰ تا ۲۲:۰۰</p>
       </div>
     </div>
-    <div style="margin-top:32px;">
+    <div style="margin-top:32px;display:flex;gap:12px;flex-wrap:wrap;">
       <button class="btn btn-primary" id="open-booking-contact">رزرو آنلاین</button>
+      <button class="btn btn-ghost" id="open-track-booking">پیگیری یا لغو نوبت</button>
     </div>
   </div>
 </section>
@@ -299,6 +301,7 @@
       <a href="#about">درباره ما</a>
       <a href="#faq">سوالات متداول</a>
       <a href="#contact">تماس</a>
+      <a id="instagram-link" href="#" target="_blank" rel="noopener" style="display:none;">اینستاگرام</a>
       <a href="admin.html">ورود مدیر</a>
     </div>
   </div>
@@ -323,6 +326,14 @@
   </div>
 </div>
 
+<!-- TRACK / CANCEL BOOKING MODAL -->
+<div class="modal-overlay" id="track-overlay">
+  <div class="modal-panel" role="dialog" aria-modal="true">
+    <button class="modal-close" id="track-close" aria-label="بستن">×</button>
+    <div id="track-body"></div>
+  </div>
+</div>
+
 <!-- LEGAL / RULES MODAL -->
 <div class="modal-overlay legal-modal" id="legal-overlay">
   <div class="modal-panel" role="dialog" aria-modal="true">
@@ -338,8 +349,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js?v=4"></script>
-<script src="js/site.js?v=4"></script>
-<script src="js/booking.js?v=4"></script>
+<script src="js/config.js?v=5"></script>
+<script src="js/site.js?v=5"></script>
+<script src="js/booking.js?v=5"></script>
 </body>
 </html>
