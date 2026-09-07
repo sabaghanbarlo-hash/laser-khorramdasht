@@ -155,7 +155,7 @@
   function renderStep2() {
     body.innerHTML = `
       <h3 class="modal-title" id="booking-title">۲. انتخاب تاریخ و ساعت</h3>
-      <p class="modal-sub">تاریخ موردنظر را انتخاب کنید.</p>
+      <p class="modal-sub">تاریخ موردنظر را انتخاب کنید. مدت زمان کل: حدود ${toFaDigits(totalDuration())} دقیقه</p>
       <div class="cal-nav">
         <button id="cal-prev" aria-label="ماه قبل">‹</button>
         <div class="label" id="cal-label"></div>
@@ -221,15 +221,28 @@
     });
   }
 
-  function generateSlots() {
+  function totalDuration() {
+    // Sum of each selected service's duration — an appointment with Full Body (90min)
+    // + Face (20min) needs 110 consecutive minutes free, not just one open slot.
+    return state.selectedServices.reduce((sum, s) => sum + (s.duration_minutes || 30), 0);
+  }
+
+  function timeToMinutes(hhmm) {
+    const [h, m] = hhmm.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  function generateCandidateStarts() {
     const settings = state.settings || { open_time: '09:00:00', close_time: '22:00:00', slot_interval_minutes: 30 };
     const [oh, om] = settings.open_time.split(':').map(Number);
     const [ch, cm] = settings.close_time.split(':').map(Number);
     const interval = settings.slot_interval_minutes || 30;
+    const need = totalDuration();
     const slots = [];
     let mins = oh * 60 + om;
     const endMins = ch * 60 + cm;
-    while (mins + interval <= endMins) {
+    // Only offer a start time if the FULL duration fits before closing time.
+    while (mins + need <= endMins) {
       const h = Math.floor(mins / 60).toString().padStart(2, '0');
       const mm = (mins % 60).toString().padStart(2, '0');
       slots.push(`${h}:${mm}`);
@@ -242,25 +255,36 @@
     const wrap = document.getElementById('slots-wrap');
     wrap.innerHTML = `<p class="empty-note">در حال بارگذاری زمان‌های آزاد…</p>`;
 
+    // public_taken_slots now also exposes duration_minutes so we can compute the
+    // full occupied window of each existing booking, not just its start time.
     const { data: taken } = await supabaseClient
       .from('public_taken_slots')
-      .select('appointment_time')
+      .select('appointment_time,duration_minutes')
       .eq('appointment_date', state.selectedDateISO);
-    const takenTimes = new Set((taken || []).map(t => t.appointment_time.slice(0,5)));
 
     const { data: blocked } = await supabaseClient
       .from('blocked_slots')
       .select('*')
       .eq('blocked_date', state.selectedDateISO);
 
-    const allSlots = generateSlots();
+    const occupied = [];
+    (taken || []).forEach(t => {
+      const start = timeToMinutes(t.appointment_time.slice(0,5));
+      occupied.push([start, start + (t.duration_minutes || 30)]);
+    });
+    (blocked || []).forEach(b => {
+      occupied.push([timeToMinutes(b.start_time.slice(0,5)), timeToMinutes(b.end_time.slice(0,5))]);
+    });
+
+    const need = totalDuration();
+    const isOverlapping = (startMin) => {
+      const endMin = startMin + need;
+      return occupied.some(([oStart, oEnd]) => startMin < oEnd && endMin > oStart);
+    };
+
+    const allSlots = generateCandidateStarts();
     const now = new Date();
     const isToday = state.selectedDateISO === now.toISOString().slice(0,10);
-
-    const isBlocked = (time) => {
-      if (!blocked) return false;
-      return blocked.some(b => time >= b.start_time.slice(0,5) && time < b.end_time.slice(0,5));
-    };
 
     const visibleSlots = allSlots.filter(t => {
       if (!isToday) return true;
@@ -270,13 +294,13 @@
     });
 
     if (visibleSlots.length === 0) {
-      wrap.innerHTML = `<p class="empty-note">برای این روز زمان خالی وجود ندارد.</p>`;
+      wrap.innerHTML = `<p class="empty-note">برای این تاریخ زمان خالی وجود ندارد. لطفاً تاریخ دیگری را انتخاب کنید.</p>`;
       document.getElementById('step2-next').disabled = true;
       return;
     }
 
     wrap.innerHTML = `<div class="slots-grid">${visibleSlots.map(t => {
-      const taken = takenTimes.has(t) || isBlocked(t);
+      const taken = isOverlapping(timeToMinutes(t));
       const selected = state.selectedTime === t;
       return `<button type="button" class="slot-btn ${taken ? 'taken' : ''} ${selected ? 'selected' : ''}" data-time="${t}" ${taken ? 'disabled' : ''}>${toFaDigits(t)}</button>`;
     }).join('')}</div>`;
@@ -388,6 +412,7 @@
       total_price: total,
       appointment_date: state.selectedDateISO,
       appointment_time: state.selectedTime,
+      duration_minutes: totalDuration(),
       notes: state.notes || null,
       status: 'pending',
     };
@@ -400,12 +425,15 @@
     state.submitting = false;
     if (error) {
       const banner = document.getElementById('banner-slot');
-      if (error.code === '23505') {
+      // 23505 = exact same start time already taken; 23P01 = the database's
+      // overlap guard caught a different-but-overlapping booking (duration-aware).
+      if (error.code === '23505' || error.code === '23P01') {
         banner.innerHTML = `<div class="banner-msg error">این ساعت همین الان توسط شخص دیگری رزرو شد. لطفاً زمان دیگری انتخاب کنید.</div>`;
         state.step = 2;
         state.selectedTime = null;
         setTimeout(() => render(), 900);
       } else {
+        console.error('[booking] insert failed:', error);
         banner.innerHTML = `<div class="banner-msg error">امکان ثبت نوبت وجود ندارد. لطفاً دوباره تلاش کنید.</div>`;
         submitBtn.disabled = false;
         submitBtn.textContent = 'تأیید و ثبت نوبت';
@@ -434,9 +462,10 @@
           <div class="summary-row"><span class="label">ساعت</span><span>${toFaDigits(r.appointment_time.slice(0,5))}</span></div>
           <div class="summary-row"><span class="label">آدرس مرکز</span><span>${address}</span></div>
         </div>
-        <p style="color:var(--ink-soft);font-size:0.9rem;margin-bottom:24px;">لطفاً در زمان تعیین‌شده در مرکز حضور داشته باشید.</p>
+        <p style="color:var(--ink-soft);font-size:0.9rem;margin-bottom:24px;">لطفاً در زمان تعیین‌شده در مرکز حضور داشته باشید. کد رزرو بالا را برای پیگیری یا لغو نوبت (بخش «پیگیری یا لغو نوبت» در صفحه تماس) نزد خود نگه دارید.</p>
         <div class="success-actions">
           <button class="btn btn-primary btn-block" id="add-to-calendar">افزودن به تقویم</button>
+          <button class="btn btn-ghost btn-block" id="add-to-calendar-ics">دانلود فایل تقویم (ICS)</button>
           <button class="btn btn-ghost btn-block" id="close-success">بازگشت به صفحه اصلی</button>
         </div>
       </div>
@@ -444,10 +473,24 @@
     document.getElementById('close-success').addEventListener('click', closeModal);
     document.getElementById('add-to-calendar').addEventListener('click', () => {
       const start = new Date(`${r.appointment_date}T${r.appointment_time}`);
-      const end = new Date(start.getTime() + 60 * 60000);
+      const end = new Date(start.getTime() + (r.duration_minutes || 60) * 60000);
       const fmt = (d) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
       const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent('نوبت لیزر - ' + (state.settings?.business_name || 'مرکز لیزر آرامیس'))}&dates=${fmt(start)}/${fmt(end)}&location=${encodeURIComponent(address)}`;
       window.open(url, '_blank');
+    });
+    document.getElementById('add-to-calendar-ics').addEventListener('click', () => {
+      const start = new Date(`${r.appointment_date}T${r.appointment_time}`);
+      const end = new Date(start.getTime() + (r.duration_minutes || 60) * 60000);
+      const fmt = (d) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+      const title = 'نوبت لیزر - ' + (state.settings?.business_name || 'مرکز لیزر آرامیس');
+      const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//laser-booking//fa','BEGIN:VEVENT',
+        `UID:${r.id}@laser-booking`, `DTSTART:${fmt(start)}`, `DTEND:${fmt(end)}`,
+        `SUMMARY:${title}`, `LOCATION:${address}`, 'END:VEVENT','END:VCALENDAR'].join('\r\n');
+      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'appointment.ics';
+      a.click();
     });
   }
 })();
