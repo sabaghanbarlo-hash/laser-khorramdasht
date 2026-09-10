@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
-<link rel="stylesheet" href="css/admin.css">
+<link rel="stylesheet" href="css/style.css?v=2">
+<link rel="stylesheet" href="css/admin.css?v=2">
 </head>
 <body class="admin-body">
 
@@ -67,6 +67,7 @@
             <option value="confirmed">تأیید شده</option>
             <option value="cancelled">لغو شده</option>
             <option value="completed">تکمیل شده</option>
+            <option value="no_show">عدم مراجعه</option>
           </select>
         </div>
       </div>
@@ -103,9 +104,51 @@
       <div class="admin-card">
         <h3>تنظیمات نمایش عمومی</h3>
         <div class="field"><label>نام مرکز</label><input type="text" id="business-name-input"></div>
-        <div class="field"><label>شماره تماس</label><input type="text" id="business-phone-input"></div>
-        <div class="field"><label>آدرس</label><input type="text" id="business-address-input"></div>
-        <button class="btn btn-primary" id="save-settings-btn">ذخیره</button>
+        <div class="field"><label>توضیح کوتاه درباره مرکز (بخش «درباره ما»)</label><textarea id="business-description-input" rows="3"></textarea></div>
+        <div class="hours-form">
+          <div class="field">
+            <label>شماره تماس</label>
+            <input type="text" id="business-phone-input">
+          </div>
+          <div class="field" style="display:flex;align-items:center;gap:8px;margin-top:28px;">
+            <input type="checkbox" id="phone-confirmed-input" style="width:auto;">
+            <label for="phone-confirmed-input" style="margin:0;">این شماره نهایی و قابل نمایش عمومی است</label>
+          </div>
+        </div>
+        <div class="field"><label>آدرس (بدون طبقه)</label><input type="text" id="business-address-input"></div>
+        <div class="hours-form">
+          <div class="field">
+            <label>طبقه / واحد</label>
+            <input type="text" id="business-floor-input">
+          </div>
+          <div class="field" style="display:flex;align-items:center;gap:8px;margin-top:28px;">
+            <input type="checkbox" id="floor-confirmed-input" style="width:auto;">
+            <label for="floor-confirmed-input" style="margin:0;">این اطلاعات طبقه نهایی است و قابل نمایش عمومی است</label>
+          </div>
+        </div>
+        <p style="font-size:0.82rem;color:var(--ink-soft);margin-top:-10px;margin-bottom:16px;">تا زمانی که تیک تأیید را نزنید، شماره تماس و طبقه در سایت عمومی نمایش داده نمی‌شوند (به‌جای نمایش اطلاعات جعلی یا ناقص).</p>
+        <div class="field"><label>لینک Google Maps (برای دکمه مسیریابی)</label><input type="text" id="business-maps-input" placeholder="https://maps.google.com/..."></div>
+        <div class="field"><label>لینک اینستاگرام</label><input type="text" id="business-instagram-input" placeholder="https://instagram.com/..."></div>
+        <div class="field" style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="cancellation-allowed-input" style="width:auto;">
+          <label for="cancellation-allowed-input" style="margin:0;">به مشتریان اجازه لغو آنلاین نوبت داده شود</label>
+        </div>
+        <button class="btn btn-primary" id="save-settings-btn" style="margin-top:12px;">ذخیره تنظیمات نمایش</button>
+      </div>
+
+      <div class="admin-card">
+        <h3>لوگو و تصویر Hero</h3>
+        <p style="font-size:0.85rem;color:var(--ink-soft);">فرمت‌های مجاز: jpg, png, webp — حجم پیشنهادی زیر ۲ مگابایت.</p>
+        <div class="field">
+          <label>لوگو</label>
+          <input type="file" id="logo-upload-input" accept="image/*">
+          <div id="logo-preview" style="margin-top:8px;"></div>
+        </div>
+        <div class="field">
+          <label>تصویر Hero (صفحه اصلی)</label>
+          <input type="file" id="hero-upload-input" accept="image/*">
+          <div id="hero-preview" style="margin-top:8px;"></div>
+        </div>
       </div>
 
       <div class="admin-card">
@@ -145,8 +188,22 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="edit-appt-modal-overlay">
+  <div class="modal-panel">
+    <button class="modal-close" id="edit-appt-modal-close">×</button>
+    <h3 class="modal-title">ویرایش تاریخ و ساعت نوبت</h3>
+    <input type="hidden" id="edit-appt-id-input">
+    <div class="hours-form">
+      <div class="field"><label>تاریخ جدید</label><input type="date" id="edit-appt-date-input"></div>
+      <div class="field"><label>ساعت جدید</label><input type="time" id="edit-appt-time-input"></div>
+    </div>
+    <div id="edit-appt-error"></div>
+    <button class="btn btn-primary btn-block" id="edit-appt-save-btn">ذخیره تغییر</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js"></script>
-<script src="js/admin.js"></script>
+<script src="js/config.js?v=2"></script>
+<script src="js/admin.js?v=2"></script>
 </body>
 </html>
