@@ -9,7 +9,7 @@ const toFaDigits = (str) => {
 const formatToman = (n) => new Intl.NumberFormat('fa-IR').format(n) + ' تومان';
 const todayISO = () => new Date().toISOString().slice(0,10);
 
-const STATUS_LABELS = { pending: 'در انتظار', confirmed: 'تأیید شده', cancelled: 'لغو شده', completed: 'تکمیل شده' };
+const STATUS_LABELS = { pending: 'در انتظار', confirmed: 'تأیید شده', cancelled: 'لغو شده', completed: 'تکمیل شده', no_show: 'عدم مراجعه' };
 
 // -------- Auth --------
 async function checkSession() {
@@ -121,19 +121,24 @@ async function loadAppointments() {
   if (statusSelect.value) query = query.eq('status', statusSelect.value);
 
   const { data, error } = await query;
-  if (error || !data || data.length === 0) {
-    wrap.innerHTML = '<div class="empty-note">امروز هیچ نوبتی ثبت نشده است.</div>';
+  if (error) {
+    console.error('[admin] load appointments failed:', error);
+    wrap.innerHTML = '<div class="empty-note">بارگذاری نوبت‌ها ممکن نشد. لطفاً دوباره تلاش کنید.</div>';
+    return;
+  }
+  if (!data || data.length === 0) {
+    wrap.innerHTML = '<div class="empty-note">نوبتی با این فیلتر یافت نشد.</div>';
     return;
   }
 
   wrap.innerHTML = `
     <table class="admin-table">
       <thead><tr>
-        <th>نام مشتری</th><th>شماره موبایل</th><th>خدمت</th><th>تاریخ</th><th>ساعت</th><th>وضعیت</th>
+        <th>نام مشتری</th><th>شماره موبایل</th><th>خدمت</th><th>تاریخ</th><th>ساعت</th><th>وضعیت</th><th>عملیات</th>
       </tr></thead>
       <tbody>
         ${data.map(a => `
-          <tr data-id="${a.id}">
+          <tr data-id="${a.id}" data-date="${a.appointment_date}" data-time="${a.appointment_time.slice(0,5)}">
             <td>${a.customer_name}</td>
             <td dir="ltr">${a.phone}</td>
             <td>${(a.services || []).map(s => s.name).join('، ')}</td>
@@ -144,6 +149,7 @@ async function loadAppointments() {
                 ${Object.entries(STATUS_LABELS).map(([val, label]) => `<option value="${val}" ${a.status === val ? 'selected' : ''}>${label}</option>`).join('')}
               </select>
             </td>
+            <td><button class="btn btn-ghost edit-appt-btn" style="padding:6px 12px;">ویرایش زمان</button></td>
           </tr>
         `).join('')}
       </tbody>
@@ -153,11 +159,52 @@ async function loadAppointments() {
   wrap.querySelectorAll('.status-select').forEach(sel => {
     sel.addEventListener('change', async (e) => {
       const id = e.target.closest('tr').dataset.id;
-      await supabaseClient.from('appointments').update({ status: e.target.value }).eq('id', id);
+      const { error } = await supabaseClient.from('appointments').update({ status: e.target.value }).eq('id', id);
+      if (error) { alert('تغییر وضعیت ممکن نشد: ' + error.message); return; }
       loadDashboard();
     });
   });
+
+  wrap.querySelectorAll('.edit-appt-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const tr = e.target.closest('tr');
+      openEditAppointmentModal(tr.dataset.id, tr.dataset.date, tr.dataset.time);
+    });
+  });
 }
+
+// -------- Edit appointment date/time --------
+const editApptModal = document.getElementById('edit-appt-modal-overlay');
+document.getElementById('edit-appt-modal-close').addEventListener('click', () => editApptModal.classList.remove('open'));
+
+function openEditAppointmentModal(id, date, time) {
+  document.getElementById('edit-appt-id-input').value = id;
+  document.getElementById('edit-appt-date-input').value = date;
+  document.getElementById('edit-appt-time-input').value = time;
+  document.getElementById('edit-appt-error').innerHTML = '';
+  editApptModal.classList.add('open');
+}
+
+document.getElementById('edit-appt-save-btn').addEventListener('click', async () => {
+  const id = document.getElementById('edit-appt-id-input').value;
+  const date = document.getElementById('edit-appt-date-input').value;
+  const time = document.getElementById('edit-appt-time-input').value;
+  const errBox = document.getElementById('edit-appt-error');
+  if (!date || !time) return;
+  const { error } = await supabaseClient.from('appointments')
+    .update({ appointment_date: date, appointment_time: time })
+    .eq('id', id);
+  if (error) {
+    // 23P01 = the new time overlaps another booking (database-enforced, same guard as public booking)
+    const msg = (error.code === '23P01' || error.code === '23505')
+      ? 'این زمان با نوبت دیگری تداخل دارد. زمان دیگری انتخاب کنید.'
+      : 'ذخیره تغییر ممکن نشد: ' + error.message;
+    errBox.innerHTML = `<div class="banner-msg error">${msg}</div>`;
+    return;
+  }
+  editApptModal.classList.remove('open');
+  loadAppointments();
+});
 
 // -------- Services --------
 const serviceModal = document.getElementById('service-modal-overlay');
@@ -243,12 +290,45 @@ async function loadHours() {
     document.getElementById('close-time-input').value = settings.close_time.slice(0,5);
     document.getElementById('slot-interval-input').value = settings.slot_interval_minutes;
     document.getElementById('business-name-input').value = settings.business_name || '';
+    document.getElementById('business-description-input').value = settings.description || '';
     document.getElementById('business-phone-input').value = settings.phone || '';
+    document.getElementById('phone-confirmed-input').checked = !!settings.phone_confirmed;
     document.getElementById('business-address-input').value = settings.address || '';
+    document.getElementById('business-floor-input').value = settings.floor || '';
+    document.getElementById('floor-confirmed-input').checked = !!settings.floor_confirmed;
+    document.getElementById('business-maps-input').value = settings.google_maps_url || '';
+    document.getElementById('business-instagram-input').value = settings.instagram_url || '';
+    document.getElementById('cancellation-allowed-input').checked = settings.cancellation_allowed !== false;
+    renderImagePreview('logo-preview', settings.logo_url);
+    renderImagePreview('hero-preview', settings.hero_image_url);
   }
   loadClosedDates();
   loadBlockedSlots();
 }
+
+function renderImagePreview(elId, url) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = url ? `<img src="${url}" style="max-height:80px;border-radius:8px;display:block;">` : '<span style="font-size:0.82rem;color:var(--ink-soft);">تصویری تنظیم نشده</span>';
+}
+
+async function uploadBusinessImage(file, fieldName) {
+  const ext = file.name.split('.').pop();
+  const path = `${fieldName}-${Date.now()}.${ext}`;
+  const { error: uploadError } = await supabaseClient.storage.from('media').upload(path, file, { upsert: true });
+  if (uploadError) { alert('آپلود تصویر ممکن نشد: ' + uploadError.message); return; }
+  const { data: pub } = supabaseClient.storage.from('media').getPublicUrl(path);
+  const { error: updateError } = await supabaseClient.from('business_settings').update({ [fieldName]: pub.publicUrl }).eq('id', 1);
+  if (updateError) { alert('ذخیره آدرس تصویر ممکن نشد: ' + updateError.message); return; }
+  renderImagePreview(fieldName === 'logo_url' ? 'logo-preview' : 'hero-preview', pub.publicUrl);
+}
+
+document.getElementById('logo-upload-input').addEventListener('change', (e) => {
+  if (e.target.files[0]) uploadBusinessImage(e.target.files[0], 'logo_url');
+});
+document.getElementById('hero-upload-input').addEventListener('change', (e) => {
+  if (e.target.files[0]) uploadBusinessImage(e.target.files[0], 'hero_image_url');
+});
 
 document.getElementById('save-hours-btn').addEventListener('click', async () => {
   await supabaseClient.from('business_settings').update({
@@ -260,11 +340,19 @@ document.getElementById('save-hours-btn').addEventListener('click', async () => 
 });
 
 document.getElementById('save-settings-btn').addEventListener('click', async () => {
-  await supabaseClient.from('business_settings').update({
+  const { error } = await supabaseClient.from('business_settings').update({
     business_name: document.getElementById('business-name-input').value.trim(),
+    description: document.getElementById('business-description-input').value.trim(),
     phone: document.getElementById('business-phone-input').value.trim(),
+    phone_confirmed: document.getElementById('phone-confirmed-input').checked,
     address: document.getElementById('business-address-input').value.trim(),
+    floor: document.getElementById('business-floor-input').value.trim(),
+    floor_confirmed: document.getElementById('floor-confirmed-input').checked,
+    google_maps_url: document.getElementById('business-maps-input').value.trim(),
+    instagram_url: document.getElementById('business-instagram-input').value.trim(),
+    cancellation_allowed: document.getElementById('cancellation-allowed-input').checked,
   }).eq('id', 1);
+  if (error) { alert('ذخیره ممکن نشد: ' + error.message); return; }
   alert('ذخیره شد.');
 });
 
